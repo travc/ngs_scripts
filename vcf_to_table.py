@@ -24,9 +24,9 @@ def setup_logger(verbose_level):
 def Main(argv=None):
     tic_total = time.time()
 
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    #parser = argparse.ArgumentParser()
-    parser.add_argument('--vcf', type=argparse.FileType('r'),
+    #parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('vcf', nargs='?', metavar='VCF', type=argparse.FileType('r'),
                         default='-',
                         help="VCF file to convert.  '-' for stdin (default).")
     parser.add_argument('-d', '--min-depth', type=int, default=0,
