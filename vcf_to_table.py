@@ -24,11 +24,13 @@ def setup_logger(verbose_level):
 def Main(argv=None):
     tic_total = time.time()
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    #parser = argparse.ArgumentParser()
     parser.add_argument('--vcf', type=argparse.FileType('r'),
-                        help='VCF file to convert')
+                        default='-',
+                        help="VCF file to convert.  '-' for stdin (default).")
     parser.add_argument('-d', '--min-depth', type=int, default=0,
-                        help="increase logging verbosity")
+                        help="don't output calls made with less than this FMT/DP (high-quality reads)")
 
     parser.add_argument('-v', '--verbose', action='count', default=0,
                         help="increase logging verbosity")
