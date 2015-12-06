@@ -30,7 +30,11 @@ def Main(argv=None):
                         default='-',
                         help="VCF file to convert.  '-' for stdin (default).")
     parser.add_argument('-d', '--min-depth', type=int, default=0,
-                        help="don't output calls made with less than this FMT/DP (high-quality reads)")
+                        help="filter calls made with less than this FMT/DP (high-quality reads)")
+    parser.add_argument('-F', '--soft-filter', action='store_true',
+                        help="instead of dropping calls failing filter, just prefix '?' to them")
+    parser.add_argument('-r', '--report-ref', action='store_true',
+                        help="report the reference as first data row.  Also output ALT as second data row.")
 
     parser.add_argument('-v', '--verbose', action='count', default=0,
                         help="increase logging verbosity")
@@ -48,15 +52,23 @@ def Main(argv=None):
 
     dat = []
     pos = []
+    ref_call = []
+    alt_call = []
     for record in vcf_reader:
         logging.info(str(record))
         pos.append(str(record.CHROM)+':'+str(record.POS))
         d = []
+        ref_call.append(record.REF)
+        alt_call.append(','.join((str(x) for x in record.ALT)))
         for sample in samples:
             c = record.genotype(sample).gt_bases
             if ( c is None or
                  record.genotype(sample)['DP'] < args.min_depth ):
-                c = '?'
+                if args.soft_filter:
+                    #c = '?'+''.join(sorted(str(c).split('/')))
+                    c = '?'+str(c)
+                else:
+                    c = '?'
                 #c = '?DP='+str(record.genotype(sample)['DP'])
             else:
                 c = str(c)
@@ -65,6 +77,11 @@ def Main(argv=None):
         dat.append(d)
 
     print('', *pos, sep='\t')
+
+    if args.report_ref:
+        print('REF', *ref_call, sep='\t')
+        print('ALT', *alt_call, sep='\t')
+
     for i,s in enumerate(samples):
         print(s, *[dat[j][i] for j in range(len(pos))], sep='\t')
 
