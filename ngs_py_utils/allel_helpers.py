@@ -6,6 +6,8 @@ import allel
 import pandas
 from collections import OrderedDict
 
+__version__ = '0.1.0'
+
 ## Utility Functions
 
 def str2int(s):
@@ -58,7 +60,7 @@ def samplenames2idxs(callset, samplenames):
     returns list of ids (orderd same as in callset) 
     and the list indexes of those ids in the callset
     If samplenames == None, return all"""
-    tmp = [ x.decode('utf-8') for x in callset[list(callset.keys())[0]]['samples'] ]
+    tmp = allCallsetSampleIds(callset)
     if samplenames == None:
         ids = tmp
         idxs = list(range(len(tmp)))
@@ -68,7 +70,14 @@ def samplenames2idxs(callset, samplenames):
     return ids, idxs
 
 
-def loadGeneotypeArray(callset,
+def allCallsetSampleIds(callset):
+    """return all sample ids from callset
+    Warning: only looks at first chrom entry (assumes same samples for all chroms)
+    """
+    return [ _.decode('utf-8') for _ in callset[list(callset.keys())[0]]['samples'] ]
+
+
+def loadGenotypeArray(callset,
                        range_string,
                        sample_idxs,
                        MIN_FMTDP=0,
@@ -77,6 +86,7 @@ def loadGeneotypeArray(callset,
                        FILTER_SNP=False,
                        FILTER_BIALLELIC=False,
                        FILTER_NON_SYNONYMOUS_CODING=False,
+                       verbose=0,
                       ):
     """
     load the callset for given region into GenotypeArray
@@ -105,7 +115,8 @@ def loadGeneotypeArray(callset,
     else:
 
         g = allel.GenotypeChunkedArray(callset[ch]['calldata']['genotype'])[sl].take(sample_idxs, axis=1)
-#        print(range_string, g.shape, sep='\t')
+        if verbose >= 1:
+            print(range_string, g.shape, sep='\t')
 
         num_loci_in = g.shape[0]
         flt = np.ones(num_loci_in, dtype=bool)
@@ -163,24 +174,31 @@ def loadGeneotypeArray(callset,
         return pos, g, flt
 
 
-def loadMultipleGeneotypeArrays(callset,
-                                ranges,
-                                sample_idxs,
+def loadMultipleGenotypeArrays(callset,
+                                sample_idxs=None,
+                                ranges=None,
                                 MIN_FMTDP=0,
                                 MAX_MISSING=None,
                                 MAX_AF=0,
                                 FILTER_SNP=False,
                                 FILTER_BIALLELIC=False,
                                 FILTER_NON_SYNONYMOUS_CODING=False,
+                                verbose=0,
                                 ):
-    # load the callset for each region into a dict (by region) of GenotypeArrays
+    """load the callset for each region into a dict (by region) of GenotypeArrays
+    """
 
     pos_dict = OrderedDict()
     g_dict = OrderedDict()
     flt_dict = OrderedDict()
 
+    if sample_idxs is None:
+        sample_idxs = list(range(len(allCallsetSampleIds(callset))))
+    if ranges is None:
+        ranges = list(callset.keys())
+
     for rngstr in ranges:
-        pos_dict[rngstr], g_dict[rngstr], flt_dict[rngstr] = loadGeneotypeArray(callset,
+        pos_dict[rngstr], g_dict[rngstr], flt_dict[rngstr] = loadGenotypeArray(callset,
                                                                 rngstr,
                                                                 sample_idxs,
                                                                 MIN_FMTDP,
@@ -189,14 +207,52 @@ def loadMultipleGeneotypeArrays(callset,
                                                                 FILTER_SNP,
                                                                 FILTER_BIALLELIC,
                                                                 FILTER_NON_SYNONYMOUS_CODING,
+                                                                verbose,
                                                                 )
     return pos_dict, g_dict, flt_dict
+
+
+def loadMultipleIntoSingleGenotypeArray(callset,
+                                sample_idxs=None,
+                                ranges=None,
+                                MIN_FMTDP=0,
+                                MAX_MISSING=None,
+                                MAX_AF=0,
+                                FILTER_SNP=False,
+                                FILTER_BIALLELIC=False,
+                                FILTER_NON_SYNONYMOUS_CODING=False,
+                                verbose=0,
+                                ):
+    """loads ranges from callset
+    concating results into single GenotypeArray
+    sample_idxs is None will load all in callset
+    ranges is None will load all in callset
+    """
+    if sample_idxs is None:
+        sample_idxs = list(range(len(allCallsetSampleIds(callset))))
+    if ranges is None:
+        ranges = list(callset.keys())
+    _, g_dict, _ = loadMultipleGenotypeArrays(callset,
+                                sample_idxs,
+                                ranges,
+                                MIN_FMTDP,
+                                MAX_MISSING,
+                                MAX_AF,
+                                FILTER_SNP,
+                                FILTER_BIALLELIC,
+                                FILTER_NON_SYNONYMOUS_CODING,
+                                verbose,
+                                )
+    chroms = [ch for ch in g_dict.keys() if len(g_dict[ch])>0]
+    all_g = g_dict[chroms[0]]
+    all_g = all_g.vstack(*[g_dict[ch] for ch in chroms[1:]])
+    return all_g
 
 
 ## Functions for metadata handling
 
 def loadMetaFile(meta_fn,
-                callset_all_sample_ids,
+                callset_all_sample_ids=None,
                 sample_column_idx=0,
                 header_lines=0,
                 sep='\t'):
