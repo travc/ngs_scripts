@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-counts indicies from illumina fastq file
+counts indicies (aka barcodes) from illumina fastq file
 """
 import sys
 import os
