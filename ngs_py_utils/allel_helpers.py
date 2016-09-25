@@ -105,9 +105,12 @@ def loadGenotypeArray(callset,
         return [],[],[]
 
     # create the slice
-    sl = pos.locate_range(start,stop)
-    #print(sl)
-    pos = pos[sl]
+    try:
+        sl = pos.locate_range(start,stop)
+        #print(sl)
+        pos = pos[sl]
+    except KeyError:
+        pos = []
 
     if len(pos) == 0: # no loci in slice
         g = []
@@ -171,7 +174,7 @@ def loadGenotypeArray(callset,
         pos = pos.compress(flt, axis=0)
 #        print('\t',pos.shape[0])
 
-        return pos, g, flt
+    return pos, g, flt
 
 
 def loadMultipleGenotypeArrays(callset,
@@ -244,8 +247,11 @@ def loadMultipleIntoSingleGenotypeArray(callset,
                                 verbose,
                                 )
     chroms = [ch for ch in g_dict.keys() if len(g_dict[ch])>0]
-    all_g = g_dict[chroms[0]]
-    all_g = all_g.vstack(*[g_dict[ch] for ch in chroms[1:]])
+    if len(chroms) == 0: # No data returned
+        all_g = []
+    else:
+        all_g = g_dict[chroms[0]]
+        all_g = all_g.vstack(*[g_dict[ch] for ch in chroms[1:]])
     return all_g
 
 
@@ -253,6 +259,7 @@ def loadMultipleIntoSingleGenotypeArray(callset,
 
 def loadMetaFile(meta_fn,
                 callset_all_sample_ids=None,
+                sample_ids_to_drop=None,
                 sample_column_idx=0,
                 header_lines=0,
                 sep='\t'):
@@ -261,6 +268,13 @@ def loadMetaFile(meta_fn,
     adds 'idx' column
     """
     meta = pandas.read_csv(meta_fn, sep=sep, header=header_lines, index_col=sample_column_idx, comment='#')
+    # Removing samples if requested
+    if sample_ids_to_drop:
+        for s in sample_ids_to_drop: # Drop one at a time so we can tolerate already missing samples
+            try:
+                meta.drop((s), inplace=True)
+            except ValueError as e:
+                print('WARNING:', e, file=sys.stderr)
     # reorder to match order in callset (callset_all_sample_ids)
     meta = meta.reindex([x for x in callset_all_sample_ids if x in meta.index.values])
     sample_ids = meta.index.values
