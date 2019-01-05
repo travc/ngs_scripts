@@ -251,7 +251,7 @@ def loadMultipleIntoSingleGenotypeArray(callset,
         all_g = []
     else:
         all_g = g_dict[chroms[0]]
-        all_g = all_g.concatenate(*[g_dict[ch] for ch in chroms[1:]])
+        all_g = all_g.concatenate([g_dict[ch] for ch in chroms[1:]])
     return all_g
 
 

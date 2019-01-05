@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 """Filter out lines from a vcf file based where the fasta reference is lower-case or 'N'"""
 
 import sys
