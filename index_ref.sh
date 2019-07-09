@@ -14,9 +14,9 @@ if [ "$(echo $REPLY | tr [:upper:] [:lower:])" == "y" ] ; then
     #sed -i '/^$/d' $REF
 fi
 
-echo
-echo "Picard tools CreateSequenceDictionary..."
-java -jar /usr/local/picard-tools/CreateSequenceDictionary.jar R=$REF O=${REF%.*}.dict
+#echo
+#echo "Picard tools CreateSequenceDictionary..."
+#java -jar /usr/local/picard-tools/CreateSequenceDictionary.jar R=$REF O=${REF%.*}.dict
 
 echo
 echo "Samtools faidx..."
