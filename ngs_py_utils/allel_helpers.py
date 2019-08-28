@@ -94,6 +94,7 @@ def LoadRegion(callset,
     # load combined set of both groups
     sample_idxs = meta['callset_idx'].values
     g = allel.GenotypeDaskArray(callset[ch]['calldata/GT'])[sl].take(sample_idxs, axis=1)
+    g = g.compute() # need to convert GenotypeDaskArray to GenotypeArray
 
     ## Filtering
     num_loci_in = g.shape[0]
@@ -104,7 +105,6 @@ def LoadRegion(callset,
     # filter genotypes on FMT:DP
     if min_FMTDP > 0:
         genoflt_FMTDP = callset[ch]['calldata/DP'][sl].take(sample_idxs, axis=1) < min_FMTDP
-        g = g.compute() # must convert GenotypeDaskArray to GenotypeArray for next assignment to work
         g[genoflt_FMTDP] = [-1,-1]
         tmp_num_calls = g.shape[0]*g.shape[1]
         tmp = np.count_nonzero(genoflt_FMTDP)
