@@ -1,4 +1,8 @@
 #!/bin/bash
+#
+# interleave a pair of fastq.gz files and append any additional fastq.gz files to the end
+# output stream is uncompressed
+# typical usage: interleave_fastq_gz.py trim_pe1.fastq.gz trim_pe2.fastq.gz trim_sing.fastq.gz ... | bwa mem -p ...
 
 SEP=`echo -e '\x1E'`
 
