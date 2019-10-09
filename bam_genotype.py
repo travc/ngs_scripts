@@ -14,8 +14,10 @@ import shlex
 import subprocess
 import tempfile
 import re
+import codecs
 
 import vcf
+
 
 def num2str(val, none_val='0'):
     return none_val if val is None else str(val)
@@ -58,10 +60,10 @@ def Main(argv=None):
     # Parse rest of arguments
     aparser = argparse.ArgumentParser(description=__doc__, parents=[conf_parser], formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     aparser.add_argument('bam_files', metavar='bam-file', nargs='*')
-    aparser.add_argument('-d', '--min-depth', type=int,
-                help="Min depth required per-sample to make a genotype call", default=2)
-    aparser.add_argument('-D', '--min-hom-depth', type=int,
-                help="Min per-sample depth required to call if all reads/observations are the same. if <= min-depth, min-depth is used.", default=5)
+#    aparser.add_argument('-d', '--min-depth', type=int,
+#                help="Min depth required per-sample to make a genotype call", default=2)
+#    aparser.add_argument('-D', '--min-hom-depth', type=int,
+#                help="Min per-sample depth required to call if all reads/observations are the same. if <= min-depth, min-depth is used.", default=5)
     aparser.add_argument('-P', '--single-population', action='store_true',
                 help="All samples are assumed to come from a single population.  Default behaviour is to analyze each sample as its own population unless a --populations file is provided.")
     aparser.add_argument('-t','--targets',
@@ -69,9 +71,11 @@ def Main(argv=None):
                 help="File of target sites to call.  Either a GFF file, or else a VCF/BED-like (1-based) file with 'chrom position ...' on each line.")
     aparser.add_argument('-p','--populations_file',
                 help="Populations file passed to freebayes.  Each line is a sample and a population which it is part of.")
-    aparser.add_argument('-f','--reference',
+    aparser.add_argument('-r','--reference',
                 required= 'reference' not in defaults,
                 help="Reference FASTA file (shoudl be same used for making/mapping bam_files)")
+    aparser.add_argument('--ploidy', type=int, default='2',
+                help="ploidy value to pass to freebayes")
     aparser.add_argument('-A','--cnv-map',
                 help="copy-number map filename to pass to freebayes")
     aparser.add_argument('--freebayes-exec',
@@ -81,25 +85,28 @@ def Main(argv=None):
                 help="Samtools executable file",
                 default='samtools')
     aparser.add_argument('--freebayes-options', help="Options used when running freebayes",
-                default='--ploidy 2 --standard-filters --use-mapping-quality --no-complex --max-complex-gap 0 --report-monomorphic')
+                default='--standard-filters --use-mapping-quality --no-complex --max-complex-gap 0 --report-monomorphic')
     aparser.add_argument('-0','--zero-based-targets', help="Targets file is 0-based (like BED) as oppsoed to 1-based (like VCF)", action='store_true', default=False)
-    aparser.add_argument('--missing-char', help="Character to indicate missing/no-call", default='.')
-    aparser.add_argument('-V', '--output-vcf', action='store_true', help="Just output raw VCF results from freebayes")
-    aparser.add_argument('-x', '--no-partial-calls', action='store_true', help="Don't output partial calls (like A/-)")
+#    aparser.add_argument('--missing-char', help="Character to indicate missing/no-call", default='.')
+#    aparser.add_argument('-V', '--output-vcf', action='store_true', help="Just output raw VCF results from freebayes")
+    aparser.add_argument('-K', '--keep-tempfiles', action='store_true', help="keep temporary files")
+#    aparser.add_argument('-x', '--no-partial-calls', action='store_true', help="Don't output partial calls (like A/-)")
     aparser.add_argument('-v', '--verbose', action='count', help="Increase verbosity level")
     aparser.set_defaults(**defaults)
 
     # process options/arguments
     args = aparser.parse_args(remaining_argv)
 
+    args.output_vcf = True # @TCC TEMP OVERRIDE
+
     # @TCC TEMP -- print out all the options/arguments
-    for k,v in vars(args).iteritems() :
+    for k,v in vars(args).items() :
         print(k,":",v, file=sys.stderr)
 #    sys.exit(1)
 
     # read the targets gff file and write out simplified targets file for freebayes
     targets_by_pos = ReadTargetsFile(args.targets, args.zero_based_targets)
-    targets_tempfilename = WriteTargetsTempfile(targets_by_pos)
+    targets_tempfilename = WriteTargetsTempfile(targets_by_pos, args.keep_tempfiles)
 
     # get the sample names from the bam files
     samples = []
@@ -107,7 +114,7 @@ def Main(argv=None):
         proc = subprocess.Popen([args.samtools_exec, 'view', '-H', bam_file], stdout=subprocess.PIPE)
         pat = re.compile(r'@RG\s.*\sSM:([^\s]+)')
         for line in iter(proc.stdout.readline,b''):
-            m = pat.match(line)
+            m = pat.match(line.decode('utf-8'))
             if m :
                 samples.append(m.group(1))
 
@@ -119,7 +126,7 @@ def Main(argv=None):
             pops_filename = None
         else:
             # make a populations file with each sample in it's own pop
-            pops_fh = tempfile.NamedTemporaryFile(dir='./', delete=True)
+            pops_fh = tempfile.NamedTemporaryFile(mode='w', dir='./', delete=not args.keep_tempfiles)
             for i, samp in enumerate(samples):
                 print(samp, "pop{0:04d}".format(i), file=pops_fh)
             pops_fh.flush()
@@ -131,6 +138,7 @@ def Main(argv=None):
     cmd.extend(shlex.split(args.freebayes_options))
     cmd.extend(['-f', args.reference])
     cmd.extend(['-t', targets_tempfilename])
+    cmd.extend(['--ploidy', str(args.ploidy)])
     if( args.cnv_map ):
         cmd.extend(['-A', args.cnv_map])
     if( pops_filename ):
@@ -141,15 +149,16 @@ def Main(argv=None):
     print("Running freebayes:", file=sys.stderr)
     print(" ".join(cmd), file=sys.stderr)
 
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True)
 
+    # Just output the vcf
     if( args.output_vcf ):
-        for line in iter(proc.stdout.readline,b''):
+        for line in iter(proc.stdout.readline,''):
             sys.stdout.write(line)
-        sys.exit(1)
+        sys.exit(0)
 
-    vcf_reader = vcf.Reader(iter(proc.stdout.readline,b''))
-
+    ## Parse the vcf to make calls (@TCC Not working and should probably be made separate)
+    vcf_reader = vcf.Reader(iter(proc.stdout.readline,''))
     data = {}
     alleles = {}
     for record in vcf_reader:
@@ -159,7 +168,7 @@ def Main(argv=None):
             key = samp+' '+pos
             # make a list of the observations/read-counts.  [ref,alt1,alt2,...]
             obs = [ record.genotype(samp)['RO'] ]
-            if( record.genotype(samp)['AO'] is None or isinstance(record.genotype(samp)['AO'], (int, long, float)) ):
+            if( record.genotype(samp)['AO'] is None or isinstance(record.genotype(samp)['AO'], (int, float)) ):
                 obs.append(record.genotype(samp)['AO'])
             else: # alternate observations is a list
                 obs.extend(record.genotype(samp)['AO'])
@@ -192,19 +201,18 @@ def Main(argv=None):
     # output header lines
     # ...variant labels
     tmp = ['#']
-    for pos,t in targets_by_pos.iteritems():
+    for pos,t in targets_by_pos.items():
         tmp.append(t['ID'])
         tmp.append(re.sub('\s+', '_', "{chrom}:{start:010d};{info}".format(**t)))
-    print('\t'.join(tmp))
     # ...alleles
     tmp = ['#']
-    for pos in targets_by_pos:
+    for pos,t in targets_by_pos.items():
         tmp.append('-')
         tmp.append(alleles[pos])
     print('\t'.join(tmp))
     # ...column lables
 #    tmp = ['#']
-#    for pos,t in targets_by_pos.iteritems():
+#    for pos,t in targets_by_pos.items():
 #        tmp.append('RO,AO')
 #        tmp.append('GT')
 #    print('\t'.join(tmp))
@@ -269,10 +277,15 @@ def ReadGFFFile(filename, zero_based_input=False):
             if( not zero_based_input ): # convert from 1-based?
                 tmp['start'] -= 1
                 tmp['end'] -= 1
+            # make sure start comes before end
+            if tmp['start'] > tmp['end']:
+                _ = tmp['start']
+                tmp['start'] = tmp['end']
+                tmp['end'] = _
             # ID?
             m = re.search(r'ID=([^;]*);',tmp['info'])
             if( m ):
-                tmp['ID'] = m.group(1)
+                tmp['ID'] = m.group(0)[3:-1]
             else:
                 tmp['ID'] = None
                 print('WARNING: No ID for GFF entry:', file=sys.stderr)
@@ -311,10 +324,10 @@ def ReadVCFLikeTargetFile(filename, zero_based_input=False):
     return targets_by_pos
 
 
-def WriteTargetsTempfile(targets_by_pos):
+def WriteTargetsTempfile(targets_by_pos, keep_tempfiles=False):
     # write the targets to a temp file for freebayes to use
     global targets_fh # so it is only deleted when program exits
-    targets_fh = tempfile.NamedTemporaryFile(dir='./', delete=True)
+    targets_fh = tempfile.NamedTemporaryFile(mode='w', dir='./', delete=not keep_tempfiles)
     #targets_fh = sys.stdout
     first_line = True
     for target_pos in sorted(targets_by_pos):
