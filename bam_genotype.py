@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
 Call genotypes using freebayes.
-Depth thresholds example:
-    "-d 2 -D 5" will call heterozygotes with a depth of 2, but require a depth of 5 to call a homozygote.
+
+eg: bam_genotype.py -r /data/reference/Anopheles-gambiae-PEST_CHROMOSOMES_AgamP4.fa -t targets.gff /data/seq/AgamP4_coluzzii/04SELI0001.bam
+
 """
 import sys
 import os
