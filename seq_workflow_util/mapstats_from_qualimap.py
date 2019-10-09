@@ -262,9 +262,10 @@ def Main(argv=None):
 
 
             #for tmp2 in tmp:
-                #contig_list.append(re.search('.*flagstat_(.*)\.out', tmp2).group(1))
+            #    contig_list.append(re.search('.*flagstat_(.*)\.out', tmp2).group(1))
             #contig_list.sort()
-            contig_list = ['1','2','3','MT']  # for Aedes aegypti
+            #contig_list = ['1','2','3','MT']  # for Aedes aegypti
+            #contig_list = ['MNAF02000916.1']  # for Aedes albopictus
             print('contig_list =',contig_list, file=sys.stderr)
 
         # get sample name from the full path
