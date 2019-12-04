@@ -44,7 +44,7 @@ EXCLUDE_FIELDS = None
 
 TABIX_EXEC = 'tabix'
 
-print("Using tabix executable '{}' {} '{}'\n{}".format(TABIX_EXEC, u"\u2192",
+print("Using tabix executable '{}' {} '{}'\n{}".format(TABIX_EXEC, "->",
         subprocess.check_output(['which', 'tabix']).decode('utf-8').rstrip(),
         subprocess.check_output([TABIX_EXEC, '--version']).decode('utf-8')))
 
