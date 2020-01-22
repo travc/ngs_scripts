@@ -29,7 +29,7 @@ def str2int(s):
 #########################################
 
 def str2range(s):
-    """parse a samtools/tabix type region specification 'chr:start-stop'"""
+    """parse a samtools/tabix type region specification 'chr:start-stop' or 'chr:start..stop'"""
     chrom = None
     start = 1
     stop = None
@@ -70,7 +70,6 @@ def LoadRegion(callset,
                group_col=None, # column name in meta used to identify groups for group_max_missing_proportion
                group_max_missing_proportion=None):
     # NOTE: returned meta should be in the same order and same length as the returned genotype array
-    
     # determine the index in the full callset for all the samples in meta
     callset_all_sample_ids = list(list(callset.values())[0]['samples'])
     meta['callset_idx'] = [callset_all_sample_ids.index(x) for x in meta.index]
