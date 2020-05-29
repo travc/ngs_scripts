@@ -86,7 +86,7 @@ def Main(argv=None):
                 help="Samtools executable file",
                 default='samtools')
     aparser.add_argument('--freebayes-options', help="Options used when running freebayes",
-                default='--standard-filters --use-mapping-quality --no-complex --max-complex-gap 0 --report-monomorphic')
+                default='--standard-filters --use-mapping-quality --max-complex-gap -1 --report-monomorphic')
     aparser.add_argument('-0','--zero-based-targets', help="Targets file is 0-based (like BED) as oppsoed to 1-based (like VCF)", action='store_true', default=False)
 #    aparser.add_argument('--missing-char', help="Character to indicate missing/no-call", default='.')
 #    aparser.add_argument('-V', '--output-vcf', action='store_true', help="Just output raw VCF results from freebayes")
