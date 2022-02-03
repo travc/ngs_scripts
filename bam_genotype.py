@@ -23,17 +23,6 @@ import vcf
 def num2str(val, none_val='0'):
     return none_val if val is None else str(val)
 
-class ConfigFakeSecHead(object):
-    def __init__(self, fp, section='DEFAULTS'):
-        self.fp = fp
-        self.sechead = '['+str(section)+']\n'
-    def readline(self):
-        if self.sechead:
-            try: return self.sechead
-            finally: self.sechead = None
-        else: return self.fp.readline()
-
-
 ### Main ######################################################################
 
 def Main(argv=None):
@@ -47,11 +36,12 @@ def Main(argv=None):
     conf_parser.add_argument('-c', '--cfg-file', type=argparse.FileType('r'), help='(optional) config file specifiying options/parameters')
     args, remaining_argv = conf_parser.parse_known_args(argv)
 
-    # build the config
+    # read the config as the argument defaults if given
     if args.cfg_file:
-        cfg = ConfigParser.SafeConfigParser()
-        cfg.readfp(ConfigFakeSecHead(args.cfg_file))
+        cfg = configparser.ConfigParser()
+        cfg.read_string("[DEFAULTS]\n"+args.cfg_file.read())
         defaults = dict(cfg.items("DEFAULTS"))
+        defaults['cfg_file'] = args.cfg_file
         # special handling of paratmeters that need it like lists
         if( 'bam_files' in defaults ): # bam_files needs to be a list
             defaults['bam_files'] = [ x for x in defaults['bam_files'].split('\n') if x and x.strip() and not x.strip()[0] in ['#',';'] ]
