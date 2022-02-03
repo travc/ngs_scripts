@@ -326,7 +326,7 @@ def WriteTargetsTempfile(targets_by_pos, keep_tempfiles=False):
         if( first_line ):
             print('\t'.join([ t['chrom'], '1', '2', 'dummy' ]), file=targets_fh) # dummy line needed due to freebayes bug
             first_line = False
-        print('\t'.join([ t['chrom'], str(t['start']), str(t['end']+1), str(t['ID']) ]), file=targets_fh)
+        print('\t'.join([ t['chrom'], str(t['start']), str(t['end']), str(t['ID']) ]), file=targets_fh) #@TCC TODO should this be end+1 or not?
     targets_fh.flush()
     return targets_fh.name
 
